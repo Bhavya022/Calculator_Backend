@@ -1,16 +1,20 @@
 const express = require('express');
 const Router = express.Router;
-const Request = express.Request;
-const Response = express.Response;
-
 const Calculator = require('../models/calculator'); // Import the Calculator model
 
 const router = Router();
 
-// API endpoint to perform calculations 
-router.get('/',async(req,res)=>{
-  res.send('welcome to calcee')
-})
+// Define a common error handler middleware
+const errorHandler = (err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: 'Internal server error' });
+};
+
+// API endpoint to perform calculations
+router.get('/', async (req, res) => {
+  res.send('Welcome to Calcee');
+});
+
 router.post('/calculate', async (req, res) => {
   const { operation, operand1, operand2 } = req.body;
 
@@ -27,16 +31,18 @@ router.post('/calculate', async (req, res) => {
         result = operand1 * operand2;
         break;
       case 'divide':
+        if (operand2 === 0) {
+          throw new Error('Division by zero is not allowed');
+        }
         result = operand1 / operand2;
         break;
       case 'percentage':
         result = (operand1 * operand2) / 100;
         break;
       default:
-        return res.status(400).json({ error: 'Invalid operation' });
+        throw new Error('Invalid operation');
     }
 
-    // Create a new calculation record and save it to the database
     const calculation = new Calculator({
       operation,
       operand1,
@@ -45,9 +51,9 @@ router.post('/calculate', async (req, res) => {
     });
     await calculation.save();
 
-    res.status(200).json({ result });
+    res.status(201).json({ result });
   } catch (error) {
-    res.status(500).json({ error: 'An error occurred' });
+    next(error); // Use the error handler middleware for consistency
   }
 });
 
@@ -57,11 +63,10 @@ router.get('/history', async (req, res) => {
     const calculations = await Calculator.find().sort({ createdAt: -1 });
     res.status(200).json({ calculations });
   } catch (error) {
-    res.status(500).json({ error: 'An error occurred' });
+    next(error); // Use the error handler middleware for consistency
   }
 });
 
-// API endpoint to recalculate a specific calculation by ID
 router.get('/recalculate/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -86,13 +91,16 @@ router.get('/recalculate/:id', async (req, res) => {
         result = calculation.operand1 * calculation.operand2;
         break;
       case 'divide':
+        if (calculation.operand2 === 0) {
+          throw new Error('Division by zero is not allowed');
+        }
         result = calculation.operand1 / calculation.operand2;
         break;
       case 'percentage':
         result = (calculation.operand1 * calculation.operand2) / 100;
         break;
       default:
-        return res.status(400).json({ error: 'Invalid operation' });
+        throw new Error('Invalid operation');
     }
 
     // Update the calculation with the new result
@@ -101,11 +109,10 @@ router.get('/recalculate/:id', async (req, res) => {
 
     res.status(200).json({ result });
   } catch (error) {
-    res.status(500).json({ error: 'An error occurred' });
+    next(error); // Use the error handler middleware for consistency
   }
 });
 
-// API endpoint to delete a specific calculation by ID
 router.delete('/delete/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -119,9 +126,10 @@ router.delete('/delete/:id', async (req, res) => {
 
     res.status(200).json({ message: 'Calculation deleted successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'An error occurred' });
+    next(error); // Use the error handler middleware for consistency
   }
 });
+
 router.post('/save-calculation', async (req, res) => {
   try {
     const { operation, operand1, operand2, result } = req.body;
@@ -145,9 +153,11 @@ router.post('/save-calculation', async (req, res) => {
     // Respond with a success message or the saved calculation
     res.status(201).json(newCalculation);
   } catch (error) {
-    console.error('Error saving calculation:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    next(error); // Use the error handler middleware for consistency
   }
 });
+
+// Add the error handler middleware
+router.use(errorHandler);
 
 module.exports = router;

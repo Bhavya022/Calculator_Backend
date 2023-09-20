@@ -1,11 +1,17 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const calculatorRoutes = require('./routes/api'); // Import the calculator route 
+const calculatorRoutes = require('./routes/api');
+const cors = require('cors');
 const app = express();
-const cors = require('cors') 
-app.use(cors())
-// Connect to MongoDB (replace 'mongodb://localhost/calculator' with your MongoDB URL)
+const mongoURI = process.env.MONGO_URI;
+const jwtSecret = process.env.JWT_SECRET;
+
+// Use the environment variables in your code as needed
+
+app.use(cors());
+require('dotenv').config();
+
 mongoose.connect('mongodb+srv://bhavya:bhavya@cluster0.kin5ecd.mongodb.net/calc?retryWrites=true&w=majority', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -16,17 +22,38 @@ mongoose.connect('mongodb+srv://bhavya:bhavya@cluster0.kin5ecd.mongodb.net/calc?
   .catch((error) => {
     console.error('Error connecting to MongoDB:', error);
   });
-
 // Middleware
 app.use(bodyParser.json());
 
 // Routes
-app.use('/', calculatorRoutes); // Use the calculator route
+app.use('/', calculatorRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: 'Internal Server Error' });
+  // Customize error response based on error type
+  if (err.name === 'ValidationError') {
+    res.status(400).json({ error: err.message });
+  } else {
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM. Shutting down gracefully.');
+  mongoose.connection.close(() => {
+    console.log('MongoDB connection closed.');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('Received SIGINT. Shutting down gracefully.');
+  mongoose.connection.close(() => {
+    console.log('MongoDB connection closed.');
+    process.exit(0);
+  });
 });
 
 // Start the Express server
