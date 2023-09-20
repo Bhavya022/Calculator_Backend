@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const calculatorRoutes = require('./routes/api'); // Import the calculator route 
 const app = express();
-
+const cors = require('cors') 
+app.use(cors())
 // Connect to MongoDB (replace 'mongodb://localhost/calculator' with your MongoDB URL)
 mongoose.connect('mongodb+srv://bhavya:bhavya@cluster0.kin5ecd.mongodb.net/calc?retryWrites=true&w=majority', {
   useNewUrlParser: true,
