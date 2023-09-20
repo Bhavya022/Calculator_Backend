@@ -1,6 +1,7 @@
 const express = require('express');
 const Router = express.Router;
 const Calculator = require('../models/calculator'); // Import the Calculator model
+const { check, validationResult } = require('express-validator'); // Import the Express Validator middleware
 
 const router = Router();
 
@@ -11,12 +12,14 @@ const errorHandler = (err, req, res, next) => {
 };
 
 // API endpoint to perform calculations
-router.get('/', async (req, res) => {
-  res.send('Welcome to Calcee');
-});
-
-router.post('/calculate', async (req, res) => {
+router.post('/calculate', async (req, res, next) => { // Define 'next' as a parameter
   const { operation, operand1, operand2 } = req.body;
+
+  // Validate the input data
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
 
   try {
     let result;
@@ -57,88 +60,17 @@ router.post('/calculate', async (req, res) => {
   }
 });
 
-router.get('/history', async (req, res) => {
-  try {
-    // Fetch all calculation records from the database
-    const calculations = await Calculator.find().sort({ createdAt: -1 });
-    res.status(200).json({ calculations });
-  } catch (error) {
-    next(error); // Use the error handler middleware for consistency
+// API endpoint to save a calculation
+router.post('/save-calculation', async (req, res, next) => { // Define 'next' as a parameter
+  const { operation, operand1, operand2, result } = req.body;
+
+  // Validate the input data
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
   }
-});
-
-router.get('/recalculate/:id', async (req, res) => {
-  const { id } = req.params;
 
   try {
-    // Find the calculation by ID
-    const calculation = await Calculator.findById(id);
-
-    if (!calculation) {
-      return res.status(404).json({ error: 'Calculation not found' });
-    }
-
-    // Recalculate the result based on the stored operation, operand1, and operand2
-    let result;
-    switch (calculation.operation) {
-      case 'add':
-        result = calculation.operand1 + calculation.operand2;
-        break;
-      case 'subtract':
-        result = calculation.operand1 - calculation.operand2;
-        break;
-      case 'multiply':
-        result = calculation.operand1 * calculation.operand2;
-        break;
-      case 'divide':
-        if (calculation.operand2 === 0) {
-          throw new Error('Division by zero is not allowed');
-        }
-        result = calculation.operand1 / calculation.operand2;
-        break;
-      case 'percentage':
-        result = (calculation.operand1 * calculation.operand2) / 100;
-        break;
-      default:
-        throw new Error('Invalid operation');
-    }
-
-    // Update the calculation with the new result
-    calculation.result = result;
-    await calculation.save();
-
-    res.status(200).json({ result });
-  } catch (error) {
-    next(error); // Use the error handler middleware for consistency
-  }
-});
-
-router.delete('/delete/:id', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    // Find the calculation by ID and delete it
-    const deletedCalculation = await Calculator.findByIdAndDelete(id);
-
-    if (!deletedCalculation) {
-      return res.status(404).json({ error: 'Calculation not found' });
-    }
-
-    res.status(200).json({ message: 'Calculation deleted successfully' });
-  } catch (error) {
-    next(error); // Use the error handler middleware for consistency
-  }
-});
-
-router.post('/save-calculation', async (req, res) => {
-  try {
-    const { operation, operand1, operand2, result } = req.body;
-
-    // Validate the input data (you can add more validation)
-    if (!operation || !operand1 || !operand2 || !result) {
-      return res.status(400).json({ error: 'Invalid data' });
-    }
-
     // Create a new Calculator instance
     const newCalculation = new Calculator({
       operation,
@@ -150,12 +82,25 @@ router.post('/save-calculation', async (req, res) => {
     // Save the calculation to the database
     await newCalculation.save();
 
-    // Respond with a success message or the saved calculation
+    // Respond with the saved calculation
     res.status(201).json(newCalculation);
   } catch (error) {
-    next(error); // Use the error handler middleware for consistency
+    // Use the next() function to pass the error to the error handler middleware
+    next(error);
   }
 });
+
+// Define validation rules using Express Validator middleware
+const calculationValidationRules = [
+  check('operation').isIn(['add', 'subtract', 'multiply', 'divide', 'percentage']),
+  check('operand1').isNumeric(),
+  check('operand2').isNumeric(),
+  check('result').isNumeric(),
+];
+
+// Add the Express Validator middleware for the specified routes
+router.post('/calculate', calculationValidationRules);
+router.post('/save-calculation', calculationValidationRules);
 
 // Add the error handler middleware
 router.use(errorHandler);
