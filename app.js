@@ -1,9 +1,8 @@
 const express = require('express');
-const { Express } = require('express');
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const calculatorRoutes =require('./routes/api');
-const app= express();
+const calculatorRoutes = require('./routes/api'); // Import the calculator route 
+const app = express();
 
 // Connect to MongoDB (replace 'mongodb://localhost/calculator' with your MongoDB URL)
 mongoose.connect('mongodb+srv://bhavya:bhavya@cluster0.kin5ecd.mongodb.net/calc?retryWrites=true&w=majority', {
@@ -21,7 +20,7 @@ mongoose.connect('mongodb+srv://bhavya:bhavya@cluster0.kin5ecd.mongodb.net/calc?
 app.use(bodyParser.json());
 
 // Routes
-app.use('/api', calculatorRoutes);
+app.use('/', calculatorRoutes); // Use the calculator route
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -30,7 +29,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start the Express server
-const port= process.env.PORT || 3000;
+const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
